@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .title }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="navbar-brand">{{ appName }}</a>
+            <div class="navbar-menu">
+                <a href="/dashboard">Dashboard</a>
+                <a href="/admin">Admin</a>
+                <a href="/logout">Logout ({{ .user.Username }})</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="admin-container">
+            <div class="admin-header">
+                <h1>Admin Dashboard</h1>
+                <nav class="admin-nav">
+                    <a href="/admin/dashboard" class="{{ if eq .active "dashboard" }}active{{ end }}">Dashboard</a>
+                    <a href="/admin/users" class="{{ if eq .active "users" }}active{{ end }}">Users</a>
+                    <a href="/admin/links" class="{{ if eq .active "links" }}active{{ end }}">Links</a>
+                </nav>
+            </div>
+
+            {{ if .stats }}
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Users</h3>
+                    <p class="stat-value">{{ .stats.TotalUsers }}</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Links</h3>
+                    <p class="stat-value">{{ .stats.TotalLinks }}</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Clicks</h3>
+                    <p class="stat-value">{{ .stats.TotalClicks }}</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Links Today</h3>
+                    <p class="stat-value">{{ .stats.LinksToday }}</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Clicks Today</h3>
+                    <p class="stat-value">{{ .stats.ClicksToday }}</p>
+                </div>
+            </div>
+            {{ end }}
+
+            <section class="admin-section">
+                <h2>Quick Actions</h2>
+                <div class="action-buttons">
+                    <a href="/admin/users" class="btn btn-secondary">Manage Users</a>
+                    <a href="/admin/links" class="btn btn-secondary">Manage Links</a>
+                    <a href="/" class="btn btn-secondary">Create Link</a>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Powered by <a href="https://github.com/nnnc-org/go-polr">go-polr</a></p>
+        </div>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

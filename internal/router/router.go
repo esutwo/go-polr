@@ -1,0 +1,210 @@
+package router
+
+import (
+	"html/template"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-gonic/gin"
+	"github.com/nnnc-org/go-polr/internal/config"
+	"github.com/nnnc-org/go-polr/internal/handlers"
+	"github.com/nnnc-org/go-polr/internal/handlers/api"
+	"github.com/nnnc-org/go-polr/internal/middleware"
+	"github.com/nnnc-org/go-polr/internal/services"
+	"gorm.io/gorm"
+)
+
+// Setup configures the Gin router with all routes and middleware
+func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
+	router := gin.New()
+
+	// Global middleware
+	router.Use(middleware.Recovery())
+	router.Use(middleware.RequestLogger())
+	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.HTTPSRedirect())
+
+	// Session store with secure cookie settings
+	store := cookie.NewStore([]byte(cfg.SessionSecret))
+	store.Options(sessions.Options{
+		Path:     "/",
+		MaxAge:   86400 * 7, // 7 days
+		HttpOnly: true,
+		Secure:   len(cfg.AppURL) >= 5 && cfg.AppURL[:5] == "https",
+		SameSite: http.SameSiteStrictMode,
+	})
+	router.Use(sessions.Sessions("polr_session", store))
+
+	// Register custom template functions
+	router.SetFuncMap(template.FuncMap{
+		"minus":   func(a, b int) int { return a - b },
+		"plus":    func(a, b int) int { return a + b },
+		"appName": func() string { return cfg.AppName },
+	})
+
+	// Load HTML templates - use explicit paths for clarity
+	router.LoadHTMLGlob("web/templates/*/*.html")
+
+	// Static files
+	router.Static("/static", "web/static")
+
+	// Initialize services
+	linkService := services.NewLinkService(db)
+	userService := services.NewUserService(db)
+	clickService := services.NewClickService(db)
+	statsService := services.NewStatsService(db)
+
+	// Initialize handlers
+	linkHandler := handlers.NewLinkHandler(linkService, clickService, cfg)
+	userHandler := handlers.NewUserHandler(userService, linkService, statsService, cfg)
+	adminHandler := handlers.NewAdminHandler(userService, linkService, statsService, cfg)
+	statsHandler := handlers.NewStatsHandler(linkService, statsService, cfg)
+
+	// Initialize API handlers
+	linkAPIHandler := api.NewLinkAPIHandler(linkService, cfg)
+	analyticsAPIHandler := api.NewAnalyticsAPIHandler(linkService, statsService)
+
+	// Initialize rate limiter
+	rateLimiter := middleware.NewRateLimiter(time.Minute)
+
+	// CSRF middleware for web routes
+	csrfMiddleware := middleware.CSRF()
+
+	// ============================================
+	// Public Routes
+	// ============================================
+
+	// Home page
+	router.GET("/", csrfMiddleware, middleware.OptionalSessionAuth(db), linkHandler.Home)
+
+	// Login/Logout/Register
+	router.GET("/login", csrfMiddleware, middleware.OptionalSessionAuth(db), userHandler.LoginPage)
+	router.POST("/login", csrfMiddleware, userHandler.Login)
+	router.GET("/logout", userHandler.Logout)
+	router.GET("/register", csrfMiddleware, middleware.OptionalSessionAuth(db), userHandler.RegisterPage)
+	router.POST("/register", csrfMiddleware, userHandler.Register)
+
+	// ============================================
+	// Authenticated Web Routes
+	// ============================================
+
+	authGroup := router.Group("/")
+	authGroup.Use(middleware.SessionAuth(db))
+	authGroup.Use(csrfMiddleware)
+	{
+		authGroup.POST("/shorten", linkHandler.Create)
+		authGroup.GET("/dashboard", userHandler.Dashboard)
+		authGroup.POST("/password", userHandler.ChangePassword)
+		authGroup.POST("/api-key/generate", userHandler.GenerateAPIKey)
+		authGroup.GET("/stats/:id", statsHandler.LinkStats)
+		authGroup.GET("/stats/:id/json", statsHandler.LinkStatsJSON)
+
+		// User link management
+		authGroup.GET("/links", userHandler.MyLinks)
+		authGroup.POST("/links/:id/toggle", userHandler.ToggleMyLink)
+		authGroup.POST("/links/:id/delete", userHandler.DeleteMyLink)
+	}
+
+	// ============================================
+	// Admin Routes
+	// ============================================
+
+	adminGroup := router.Group("/admin")
+	adminGroup.Use(middleware.SessionAuth(db))
+	adminGroup.Use(middleware.AdminOnly())
+	adminGroup.Use(csrfMiddleware)
+	{
+		adminGroup.GET("", adminHandler.Dashboard)
+		adminGroup.GET("/dashboard", adminHandler.Dashboard)
+		adminGroup.GET("/users", adminHandler.Users)
+		adminGroup.GET("/users/:id/edit", adminHandler.EditUser)
+		adminGroup.POST("/users/:id/edit", adminHandler.UpdateUser)
+		adminGroup.POST("/users/:id/toggle", adminHandler.ToggleUserStatus)
+		adminGroup.POST("/users/:id/delete", adminHandler.DeleteUser)
+		adminGroup.GET("/links", adminHandler.Links)
+		adminGroup.POST("/links/:id/toggle", adminHandler.ToggleLinkStatus)
+		adminGroup.POST("/links/:id/delete", adminHandler.DeleteLink)
+	}
+
+	// ============================================
+	// API v2 Routes
+	// ============================================
+
+	apiV2 := router.Group("/api/v2")
+	apiV2.Use(middleware.APIAuth(db, cfg.AnonAPIEnabled))
+	apiV2.Use(middleware.APIRateLimit(rateLimiter))
+	{
+		// Link operations - POST only for state-changing operations
+		apiV2.POST("/action/shorten", linkAPIHandler.Shorten)
+		apiV2.POST("/action/shorten_bulk", linkAPIHandler.BulkShorten)
+		apiV2.GET("/link/lookup", linkAPIHandler.Lookup)
+
+		// Analytics
+		apiV2.GET("/analytics/lookup", analyticsAPIHandler.Lookup)
+	}
+
+	// ============================================
+	// Redirect Route - using NoRoute handler
+	// ============================================
+	// This ensures all explicit routes take priority,
+	// and only unmatched GET requests are treated as short URLs
+	router.NoRoute(func(c *gin.Context) {
+		// Only handle GET requests as potential short URLs
+		if c.Request.Method != "GET" {
+			c.HTML(404, "error.html", gin.H{
+				"title":   "Not Found",
+				"message": "The requested page was not found.",
+			})
+			return
+		}
+
+		// Parse the path to extract short URL and optional secret key
+		path := c.Request.URL.Path
+		if len(path) > 0 && path[0] == '/' {
+			path = path[1:]
+		}
+
+		// Skip if path is empty
+		if path == "" {
+			c.HTML(404, "error.html", gin.H{
+				"title":   "Not Found",
+				"message": "The requested page was not found.",
+			})
+			return
+		}
+
+		// Split path into parts
+		parts := splitPath(path)
+		if len(parts) == 0 || len(parts) > 2 {
+			c.HTML(404, "error.html", gin.H{
+				"title":   "Not Found",
+				"message": "The requested page was not found.",
+			})
+			return
+		}
+
+		// Set params for the redirect handler
+		c.Params = append(c.Params, gin.Param{Key: "shortURL", Value: parts[0]})
+		if len(parts) == 2 {
+			c.Params = append(c.Params, gin.Param{Key: "secretKey", Value: parts[1]})
+		}
+
+		linkHandler.Redirect(c)
+	})
+
+	return router
+}
+
+// splitPath splits a URL path into its components
+func splitPath(path string) []string {
+	var parts []string
+	for _, p := range strings.Split(path, "/") {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	return parts
+}

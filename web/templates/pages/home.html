@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .title }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="navbar-brand">{{ appName }}</a>
+            <div class="navbar-menu">
+                {{ if .user }}
+                    <a href="/dashboard">Dashboard</a>
+                    {{ if .user.IsAdmin }}
+                        <a href="/admin">Admin</a>
+                    {{ end }}
+                    <a href="/logout">Logout ({{ .user.Username }})</a>
+                {{ else }}
+                    <a href="/login">Login</a>
+                    <a href="/register">Register</a>
+                {{ end }}
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="home-container">
+            <h1>Shorten Your URLs</h1>
+            <p class="subtitle">Create short, memorable links in seconds</p>
+
+            {{ if .error }}
+                <div class="alert alert-error">{{ .error }}</div>
+            {{ end }}
+
+            {{ if .user }}
+                {{ if .success }}
+                    <div class="alert alert-success">
+                        <p>Your shortened URL:</p>
+                        <div class="result-url">
+                            <input type="text" id="short-url" value="{{ .shortURL }}" readonly>
+                            <button onclick="copyToClipboard()" class="btn btn-primary">Copy</button>
+                        </div>
+                        {{ if .secretKey }}
+                            <p class="secret-key">Secret Key: <code>{{ .secretKey }}</code></p>
+                        {{ end }}
+                    </div>
+                {{ end }}
+
+                <form action="/shorten" method="POST" class="shorten-form">
+                    <input type="hidden" name="_csrf" value="{{ .csrf_token }}">
+
+                    <div class="form-group">
+                        <label for="url">Enter your long URL</label>
+                        <input type="url" id="url" name="url" placeholder="https://example.com/your-long-url"
+                               value="{{ .url }}" required class="form-control">
+                    </div>
+
+                    <details class="advanced-options">
+                        <summary>Advanced options</summary>
+                        <div class="advanced-options-content">
+                            <div class="form-group">
+                                <label for="custom_ending">Custom ending (optional)</label>
+                                <input type="text" id="custom_ending" name="custom_ending"
+                                       placeholder="my-custom-link" class="form-control">
+                            </div>
+
+                            <div class="form-group checkbox-group">
+                                <label>
+                                    <input type="checkbox" name="is_secret" value="true">
+                                    Make this link secret (requires key to access)
+                                </label>
+                            </div>
+                        </div>
+                    </details>
+
+                    <button type="submit" class="btn btn-primary btn-large">Shorten URL</button>
+                </form>
+            {{ else }}
+                <div class="login-prompt">
+                    <p>Please sign in to create shortened links.</p>
+                    <div class="login-prompt-actions">
+                        <a href="/login" class="btn btn-primary btn-large">Login</a>
+                        <a href="/register" class="btn btn-secondary btn-large">Register</a>
+                    </div>
+                </div>
+            {{ end }}
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Powered by <a href="https://github.com/nnnc-org/go-polr">go-polr</a></p>
+        </div>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

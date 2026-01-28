@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .title }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="navbar-brand">{{ appName }}</a>
+            <div class="navbar-menu">
+                {{ if .user }}
+                    <a href="/dashboard">Dashboard</a>
+                    <a href="/links">My Links</a>
+                    {{ if .user.IsAdmin }}
+                        <a href="/admin">Admin</a>
+                    {{ end }}
+                    <a href="/logout">Logout ({{ .user.Username }})</a>
+                {{ else }}
+                    <a href="/login">Login</a>
+                    <a href="/register">Register</a>
+                {{ end }}
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="dashboard-container">
+            <h1>Dashboard</h1>
+
+            {{ if .stats }}
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Links</h3>
+                    <p class="stat-value">{{ .stats.TotalLinks }}</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Clicks</h3>
+                    <p class="stat-value">{{ .stats.TotalClicks }}</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Links Today</h3>
+                    <p class="stat-value">{{ .stats.LinksToday }}</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Clicks Today</h3>
+                    <p class="stat-value">{{ .stats.ClicksToday }}</p>
+                </div>
+            </div>
+            {{ end }}
+
+            <section class="dashboard-section">
+                <h2>Your Recent Links</h2>
+                {{ if .links }}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Short URL</th>
+                            <th>Long URL</th>
+                            <th>Clicks</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{ range .links }}
+                        <tr>
+                            <td><a href="{{ $.appURL }}/{{ .ShortURL }}" target="_blank">{{ .ShortURL }}</a></td>
+                            <td class="truncate" title="{{ .LongURL }}">{{ .LongURL }}</td>
+                            <td>{{ .Clicks }}</td>
+                            <td>
+                                {{ if .IsDisabled }}
+                                    <span class="badge badge-error">Disabled</span>
+                                {{ else }}
+                                    <span class="badge badge-success">Active</span>
+                                {{ end }}
+                            </td>
+                            <td>{{ .CreatedAt.Format "2006-01-02" }}</td>
+                            <td class="actions">
+                                <a href="/stats/{{ .ID }}" class="btn btn-small">Stats</a>
+                                <form action="/links/{{ .ID }}/toggle" method="POST" class="inline-form"
+                                      onsubmit="return confirm('Are you sure you want to {{ if .IsDisabled }}enable{{ else }}disable{{ end }} this link?');">
+                                    <input type="hidden" name="_csrf" value="{{ $.csrf_token }}">
+                                    <button type="submit" class="btn btn-small">
+                                        {{ if .IsDisabled }}Enable{{ else }}Disable{{ end }}
+                                    </button>
+                                </form>
+                                <form action="/links/{{ .ID }}/delete" method="POST" class="inline-form"
+                                      onsubmit="return confirm('Are you sure you want to delete this link?');">
+                                    <input type="hidden" name="_csrf" value="{{ $.csrf_token }}">
+                                    <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {{ end }}
+                    </tbody>
+                </table>
+                <p style="margin-top: 1rem;"><a href="/links">View all links &rarr;</a></p>
+                {{ else }}
+                <p>You haven't created any links yet. <a href="/">Create one now!</a></p>
+                {{ end }}
+            </section>
+
+            <section class="dashboard-section">
+                <h2>API Access</h2>
+                {{ if .user.APIKey }}
+                    <p>Your API Key: <code id="api-key-display">{{ .user.MaskedAPIKey }}</code>
+                        <button type="button" class="btn btn-small" onclick="toggleAPIKey()" id="api-key-toggle">Show</button>
+                        <button type="button" class="btn btn-small" onclick="copyAPIKey()">Copy</button>
+                    </p>
+                    <input type="hidden" id="api-key-full" value="{{ .user.APIKey }}">
+                    <p>Status: {{ if .user.APIActive }}<span class="badge badge-success">Active</span>{{ else }}<span class="badge badge-error">Inactive</span>{{ end }}</p>
+                {{ else }}
+                    <p>You don't have an API key yet.</p>
+                {{ end }}
+                <form action="/api-key/generate" method="POST" class="inline-form" style="margin-top: 1rem;">
+                    <input type="hidden" name="_csrf" value="{{ .csrf_token }}">
+                    <button type="submit" class="btn btn-secondary">{{ if .user.APIKey }}Regenerate{{ else }}Generate{{ end }} API Key</button>
+                </form>
+                <script>
+                    var apiKeyVisible = false;
+                    function toggleAPIKey() {
+                        var display = document.getElementById('api-key-display');
+                        var full = document.getElementById('api-key-full');
+                        var toggle = document.getElementById('api-key-toggle');
+                        if (apiKeyVisible) {
+                            display.textContent = '{{ .user.MaskedAPIKey }}';
+                            toggle.textContent = 'Show';
+                        } else {
+                            display.textContent = full.value;
+                            toggle.textContent = 'Hide';
+                        }
+                        apiKeyVisible = !apiKeyVisible;
+                    }
+                    function copyAPIKey() {
+                        var full = document.getElementById('api-key-full');
+                        navigator.clipboard.writeText(full.value).then(function() {
+                            alert('API key copied to clipboard');
+                        });
+                    }
+                </script>
+            </section>
+
+            <section class="dashboard-section">
+                <h2>Change Password</h2>
+                {{ if .passwordError }}
+                    <div class="alert alert-error">{{ .passwordError }}</div>
+                {{ end }}
+                <form action="/password" method="POST" class="password-form">
+                    <input type="hidden" name="_csrf" value="{{ .csrf_token }}">
+                    <div class="form-group">
+                        <label for="current_password">Current Password</label>
+                        <input type="password" id="current_password" name="current_password" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="new_password">New Password</label>
+                        <input type="password" id="new_password" name="new_password" required class="form-control" minlength="12">
+                        <small>Minimum 12 characters with uppercase, lowercase, digit, and special character</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm_password">Confirm New Password</label>
+                        <input type="password" id="confirm_password" name="confirm_password" required class="form-control">
+                    </div>
+                    <button type="submit" class="btn btn-secondary">Change Password</button>
+                </form>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Powered by <a href="https://github.com/nnnc-org/go-polr">go-polr</a></p>
+        </div>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
