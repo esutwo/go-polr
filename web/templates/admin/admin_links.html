@@ -1,124 +1,102 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .title }}</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <nav class="navbar">
-        <div class="container">
-            <a href="/" class="navbar-brand">{{ appName }}</a>
-            <div class="navbar-menu">
-                <a href="/dashboard">Dashboard</a>
-                <a href="/admin">Admin</a>
-                <a href="/logout">Logout ({{ .user.Username }})</a>
-            </div>
-        </div>
-    </nav>
+{{ template "base" . }}
 
-    <main class="container">
-        <div class="admin-container">
-            <div class="admin-header">
-                <h1>Link Management</h1>
-                <nav class="admin-nav">
-                    <a href="/admin/dashboard" class="{{ if eq .active "dashboard" }}active{{ end }}">Dashboard</a>
-                    <a href="/admin/users" class="{{ if eq .active "users" }}active{{ end }}">Users</a>
-                    <a href="/admin/links" class="{{ if eq .active "links" }}active{{ end }}">Links</a>
-                </nav>
-            </div>
+{{ define "navbar" }}
+<a href="/dashboard">Dashboard</a>
+<a href="/admin">Admin</a>
+<a href="/logout">Logout ({{ .user.Username }})</a>
+{{ end }}
 
-            <div class="search-bar">
-                <form action="/admin/links" method="GET" class="search-form">
-                    <input type="text" name="search" placeholder="Search links..." value="{{ .search }}" class="search-input">
-                    <input type="hidden" name="sort" value="{{ .sortBy }}">
-                    <input type="hidden" name="order" value="{{ .sortOrder }}">
-                    <button type="submit" class="btn btn-small">Search</button>
-                    {{ if .search }}
-                        <a href="/admin/links" class="btn btn-small">Clear</a>
-                    {{ end }}
-                </form>
-            </div>
+{{ define "content" }}
+<div class="admin-container">
+    <div class="admin-header">
+        <h1>Link Management</h1>
+        <nav class="admin-nav">
+            <a href="/admin/dashboard" class="{{ if eq .active "dashboard" }}active{{ end }}">Dashboard</a>
+            <a href="/admin/users" class="{{ if eq .active "users" }}active{{ end }}">Users</a>
+            <a href="/admin/links" class="{{ if eq .active "links" }}active{{ end }}">Links</a>
+        </nav>
+    </div>
 
-            <p>Total links: {{ .total }}{{ if .search }} (filtered){{ end }}</p>
-
-            {{ if .links }}
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th><a href="?search={{ .search }}&sort=id&order={{ if and (eq .sortBy "id") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "id" }} active{{ end }}">ID {{ if eq .sortBy "id" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
-                        <th><a href="?search={{ .search }}&sort=short_url&order={{ if and (eq .sortBy "short_url") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "short_url" }} active{{ end }}">Short URL {{ if eq .sortBy "short_url" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
-                        <th><a href="?search={{ .search }}&sort=long_url&order={{ if and (eq .sortBy "long_url") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "long_url" }} active{{ end }}">Long URL {{ if eq .sortBy "long_url" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
-                        <th><a href="?search={{ .search }}&sort=creator&order={{ if and (eq .sortBy "creator") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "creator" }} active{{ end }}">Creator {{ if eq .sortBy "creator" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
-                        <th><a href="?search={{ .search }}&sort=clicks&order={{ if and (eq .sortBy "clicks") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "clicks" }} active{{ end }}">Clicks {{ if eq .sortBy "clicks" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
-                        <th><a href="?search={{ .search }}&sort=status&order={{ if and (eq .sortBy "status") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "status" }} active{{ end }}">Status {{ if eq .sortBy "status" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
-                        <th><a href="?search={{ .search }}&sort=created_at&order={{ if and (eq .sortBy "created_at") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "created_at" }} active{{ end }}">Created {{ if eq .sortBy "created_at" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{ range .links }}
-                    <tr>
-                        <td>{{ .ID }}</td>
-                        <td><a href="{{ $.appURL }}/{{ .ShortURL }}" target="_blank">{{ .ShortURL }}</a></td>
-                        <td class="truncate" title="{{ .LongURL }}">{{ .LongURL }}</td>
-                        <td>{{ .Creator }}</td>
-                        <td>{{ .Clicks }}</td>
-                        <td>
-                            {{ if .IsDisabled }}
-                                <span class="badge badge-error">Disabled</span>
-                            {{ else }}
-                                <span class="badge badge-success">Active</span>
-                            {{ end }}
-                            {{ if .IsSecret }}
-                                <span class="badge badge-warning">Secret</span>
-                            {{ end }}
-                        </td>
-                        <td>{{ .CreatedAt.Format "2006-01-02" }}</td>
-                        <td class="actions">
-                            <a href="/stats/{{ .ID }}" class="btn btn-small">Stats</a>
-                            <form action="/admin/links/{{ .ID }}/toggle" method="POST" class="inline-form"
-                                  onsubmit="return confirm('Are you sure you want to {{ if .IsDisabled }}enable{{ else }}disable{{ end }} this link?');">
-                                <input type="hidden" name="_csrf" value="{{ $.csrf_token }}">
-                                <button type="submit" class="btn btn-small">
-                                    {{ if .IsDisabled }}Enable{{ else }}Disable{{ end }}
-                                </button>
-                            </form>
-                            <form action="/admin/links/{{ .ID }}/delete" method="POST" class="inline-form"
-                                  onsubmit="return confirm('Are you sure you want to delete this link? All associated clicks will also be deleted.');">
-                                <input type="hidden" name="_csrf" value="{{ $.csrf_token }}">
-                                <button type="submit" class="btn btn-small btn-danger">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {{ end }}
-                </tbody>
-            </table>
-
-            {{ if gt .totalPages 1 }}
-            <div class="pagination">
-                {{ if gt .page 1 }}
-                    <a href="?page={{ minus .page 1 }}&search={{ .search }}&sort={{ .sortBy }}&order={{ .sortOrder }}" class="btn btn-small">Previous</a>
-                {{ end }}
-                <span>Page {{ .page }} of {{ .totalPages }}</span>
-                {{ if lt .page .totalPages }}
-                    <a href="?page={{ plus .page 1 }}&search={{ .search }}&sort={{ .sortBy }}&order={{ .sortOrder }}" class="btn btn-small">Next</a>
-                {{ end }}
-            </div>
+    <div class="search-bar">
+        <form action="/admin/links" method="GET" class="search-form">
+            <input type="text" name="search" placeholder="Search links..." value="{{ .search }}" class="search-input">
+            <input type="hidden" name="sort" value="{{ .sortBy }}">
+            <input type="hidden" name="order" value="{{ .sortOrder }}">
+            <button type="submit" class="btn btn-small">Search</button>
+            {{ if .search }}
+                <a href="/admin/links" class="btn btn-small">Clear</a>
             {{ end }}
-            {{ else }}
-            <p>No links found.</p>
+        </form>
+    </div>
+
+    <p>Total links: {{ .total }}{{ if .search }} (filtered){{ end }}</p>
+
+    {{ if .links }}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th><a href="?search={{ .search }}&sort=id&order={{ if and (eq .sortBy "id") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "id" }} active{{ end }}">ID {{ if eq .sortBy "id" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
+                <th><a href="?search={{ .search }}&sort=short_url&order={{ if and (eq .sortBy "short_url") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "short_url" }} active{{ end }}">Short URL {{ if eq .sortBy "short_url" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
+                <th><a href="?search={{ .search }}&sort=long_url&order={{ if and (eq .sortBy "long_url") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "long_url" }} active{{ end }}">Long URL {{ if eq .sortBy "long_url" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
+                <th><a href="?search={{ .search }}&sort=creator&order={{ if and (eq .sortBy "creator") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "creator" }} active{{ end }}">Creator {{ if eq .sortBy "creator" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
+                <th><a href="?search={{ .search }}&sort=clicks&order={{ if and (eq .sortBy "clicks") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "clicks" }} active{{ end }}">Clicks {{ if eq .sortBy "clicks" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
+                <th><a href="?search={{ .search }}&sort=status&order={{ if and (eq .sortBy "status") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "status" }} active{{ end }}">Status {{ if eq .sortBy "status" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
+                <th><a href="?search={{ .search }}&sort=created_at&order={{ if and (eq .sortBy "created_at") (eq .sortOrder "asc") }}desc{{ else }}asc{{ end }}" class="sort-header{{ if eq .sortBy "created_at" }} active{{ end }}">Created {{ if eq .sortBy "created_at" }}{{ if eq .sortOrder "asc" }}▲{{ else }}▼{{ end }}{{ end }}</a></th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .links }}
+            <tr>
+                <td>{{ .ID }}</td>
+                <td><a href="{{ $.appURL }}/{{ .ShortURL }}" target="_blank">{{ .ShortURL }}</a></td>
+                <td class="truncate" title="{{ .LongURL }}">{{ .LongURL }}</td>
+                <td>{{ .Creator }}</td>
+                <td>{{ .Clicks }}</td>
+                <td>
+                    {{ if .IsDisabled }}
+                        <span class="badge badge-error">Disabled</span>
+                    {{ else }}
+                        <span class="badge badge-success">Active</span>
+                    {{ end }}
+                    {{ if .IsSecret }}
+                        <span class="badge badge-warning">Secret</span>
+                    {{ end }}
+                </td>
+                <td>{{ .CreatedAt.Format "2006-01-02" }}</td>
+                <td class="actions">
+                    <a href="/stats/{{ .ID }}" class="btn btn-small">Stats</a>
+                    <form action="/admin/links/{{ .ID }}/toggle" method="POST" class="inline-form"
+                          onsubmit="return confirm('Are you sure you want to {{ if .IsDisabled }}enable{{ else }}disable{{ end }} this link?');">
+                        <input type="hidden" name="_csrf" value="{{ $.csrf_token }}">
+                        <button type="submit" class="btn btn-small">
+                            {{ if .IsDisabled }}Enable{{ else }}Disable{{ end }}
+                        </button>
+                    </form>
+                    <form action="/admin/links/{{ .ID }}/delete" method="POST" class="inline-form"
+                          onsubmit="return confirm('Are you sure you want to delete this link? All associated clicks will also be deleted.');">
+                        <input type="hidden" name="_csrf" value="{{ $.csrf_token }}">
+                        <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
             {{ end }}
-        </div>
-    </main>
+        </tbody>
+    </table>
 
-    <footer class="footer">
-        <div class="container">
-            <p>Powered by <a href="https://github.com/nnnc-org/go-polr">go-polr</a></p>
-        </div>
-    </footer>
-
-    <script src="/static/js/app.js"></script>
-</body>
-</html>
+    {{ if gt .totalPages 1 }}
+    <div class="pagination">
+        {{ if gt .page 1 }}
+            <a href="?page={{ minus .page 1 }}&search={{ .search }}&sort={{ .sortBy }}&order={{ .sortOrder }}" class="btn btn-small">Previous</a>
+        {{ end }}
+        <span>Page {{ .page }} of {{ .totalPages }}</span>
+        {{ if lt .page .totalPages }}
+            <a href="?page={{ plus .page 1 }}&search={{ .search }}&sort={{ .sortBy }}&order={{ .sortOrder }}" class="btn btn-small">Next</a>
+        {{ end }}
+    </div>
+    {{ end }}
+    {{ else }}
+    <p>No links found.</p>
+    {{ end }}
+</div>
+{{ end }}

@@ -1,59 +1,37 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .title }}</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <nav class="navbar">
-        <div class="container">
-            <a href="/" class="navbar-brand">{{ appName }}</a>
-            <div class="navbar-menu">
-                <a href="/login">Login</a>
-                <a href="/register">Register</a>
-            </div>
+{{ template "base" . }}
+
+{{ define "navbar" }}
+<a href="/login">Login</a>
+<a href="/register">Register</a>
+{{ end }}
+
+{{ define "content" }}
+<div class="auth-container">
+    <h1>Login</h1>
+
+    {{ if .error }}
+        <div class="alert alert-error">{{ .error }}</div>
+    {{ end }}
+
+    <form action="/login" method="POST" class="auth-form">
+        <input type="hidden" name="_csrf" value="{{ .csrf_token }}">
+
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username"
+                   value="{{ .username }}" required class="form-control"
+                   autocomplete="username" autofocus>
         </div>
-    </nav>
 
-    <main class="container">
-        <div class="auth-container">
-            <h1>Login</h1>
-
-            {{ if .error }}
-                <div class="alert alert-error">{{ .error }}</div>
-            {{ end }}
-
-            <form action="/login" method="POST" class="auth-form">
-                <input type="hidden" name="_csrf" value="{{ .csrf_token }}">
-
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username"
-                           value="{{ .username }}" required class="form-control"
-                           autocomplete="username" autofocus>
-                </div>
-
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password"
-                           required class="form-control" autocomplete="current-password">
-                </div>
-
-                <button type="submit" class="btn btn-primary btn-large">Login</button>
-            </form>
-
-            <p class="auth-link">Don't have an account? <a href="/register">Register</a></p>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password"
+                   required class="form-control" autocomplete="current-password">
         </div>
-    </main>
 
-    <footer class="footer">
-        <div class="container">
-            <p>Powered by <a href="https://github.com/nnnc-org/go-polr">go-polr</a></p>
-        </div>
-    </footer>
+        <button type="submit" class="btn btn-primary btn-large">Login</button>
+    </form>
 
-    <script src="/static/js/app.js"></script>
-</body>
-</html>
+    <p class="auth-link">Don't have an account? <a href="/register">Register</a></p>
+</div>
+{{ end }}

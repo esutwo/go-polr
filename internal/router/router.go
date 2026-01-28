@@ -3,12 +3,14 @@ package router
 import (
 	"html/template"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/render"
 	"github.com/nnnc-org/go-polr/internal/config"
 	"github.com/nnnc-org/go-polr/internal/handlers"
 	"github.com/nnnc-org/go-polr/internal/handlers/api"
@@ -39,14 +41,14 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	router.Use(sessions.Sessions("polr_session", store))
 
 	// Register custom template functions
-	router.SetFuncMap(template.FuncMap{
+	funcMap := template.FuncMap{
 		"minus":   func(a, b int) int { return a - b },
 		"plus":    func(a, b int) int { return a + b },
 		"appName": func() string { return cfg.AppName },
-	})
+	}
 
-	// Load HTML templates - use explicit paths for clarity
-	router.LoadHTMLGlob("web/templates/*/*.html")
+	// Load HTML templates with base layout inheritance
+	router.HTMLRender = loadTemplates("web/templates", funcMap)
 
 	// Static files
 	router.Static("/static", "web/static")
@@ -207,4 +209,69 @@ func splitPath(path string) []string {
 		}
 	}
 	return parts
+}
+
+// templateRenderer implements gin's HTMLRender interface with isolated template sets
+type templateRenderer struct {
+	templates map[string]*template.Template
+}
+
+func (r *templateRenderer) Instance(name string, data interface{}) render.Render {
+	return &templateInstance{
+		Template: r.templates[name],
+		Data:     data,
+	}
+}
+
+type templateInstance struct {
+	Template *template.Template
+	Data     interface{}
+}
+
+func (t *templateInstance) Render(w http.ResponseWriter) error {
+	t.WriteContentType(w)
+	return t.Template.Execute(w, t.Data)
+}
+
+func (t *templateInstance) WriteContentType(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+}
+
+// loadTemplates loads all templates with base layout inheritance
+func loadTemplates(templatesDir string, funcMap template.FuncMap) *templateRenderer {
+	templates := make(map[string]*template.Template)
+
+	// Get the base layout content
+	baseLayout := filepath.Join(templatesDir, "layouts", "base.html")
+
+	// Find all page templates
+	pageTemplates, _ := filepath.Glob(filepath.Join(templatesDir, "pages", "*.html"))
+	adminTemplates, _ := filepath.Glob(filepath.Join(templatesDir, "admin", "*.html"))
+
+	allTemplates := append(pageTemplates, adminTemplates...)
+
+	// Parse each page template into its own isolated template set
+	for _, pageFile := range allTemplates {
+		name := filepath.Base(pageFile)
+
+		// Create a fresh template set for this page
+		t := template.New(name).Funcs(funcMap)
+
+		// Parse base layout and page template together
+		t, err := t.ParseFiles(baseLayout, pageFile)
+		if err != nil {
+			panic("Error parsing template " + name + ": " + err.Error())
+		}
+
+		// Get the "base" template which is our entry point
+		baseT := t.Lookup("base")
+		if baseT == nil {
+			panic("Template " + name + " does not define 'base'")
+		}
+
+		// Store the template - we'll execute "base" which calls navbar, content, scripts
+		templates[name] = baseT
+	}
+
+	return &templateRenderer{templates: templates}
 }

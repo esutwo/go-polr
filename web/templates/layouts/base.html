@@ -1,0 +1,36 @@
+{{ define "base" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .title }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="navbar-brand">{{ appName }}</a>
+            <div class="navbar-menu">
+                {{ template "navbar" . }}
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        {{ template "content" . }}
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Powered by <a href="https://github.com/nnnc-org/go-polr">go-polr</a></p>
+        </div>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+    {{ template "scripts" . }}
+</body>
+</html>
+{{ end }}
+
+{{ define "scripts" }}{{ end }}
