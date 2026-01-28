@@ -45,16 +45,9 @@ func (u *User) HasAPIAccess() bool {
 	return u.APIActive && u.APIKey != nil && *u.APIKey != ""
 }
 
-// MaskedAPIKey returns a masked version of the API key showing only first and last 4 characters
-func (u *User) MaskedAPIKey() string {
-	if u.APIKey == nil || *u.APIKey == "" {
-		return ""
-	}
-	key := *u.APIKey
-	if len(key) <= 8 {
-		return "********"
-	}
-	return key[:4] + "..." + key[len(key)-4:]
+// HasAPIKey returns true if the user has an API key (hashed) stored
+func (u *User) HasAPIKey() bool {
+	return u.APIKey != nil && *u.APIKey != ""
 }
 
 // Role constants

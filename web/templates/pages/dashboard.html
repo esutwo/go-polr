@@ -94,19 +94,26 @@
 
     <section class="dashboard-section">
         <h2>API Access</h2>
-        {{ if .user.APIKey }}
-            <p>Your API Key: <code id="api-key-display">{{ .user.MaskedAPIKey }}</code>
-                <button type="button" class="btn btn-small" onclick="toggleAPIKey()" id="api-key-toggle">Show</button>
-                <button type="button" class="btn btn-small" onclick="copyAPIKey()">Copy</button>
-            </p>
-            <input type="hidden" id="api-key-full" value="{{ .user.APIKey }}">
+        {{ if .newAPIKey }}
+            <div class="alert alert-success">
+                <p><strong>Your new API key (copy it now - it won't be shown again):</strong></p>
+                <p><code id="api-key-display">{{ .newAPIKey }}</code>
+                    <button type="button" class="btn btn-small" onclick="copyAPIKey()">Copy</button>
+                </p>
+                <input type="hidden" id="api-key-full" value="{{ .newAPIKey }}">
+            </div>
+            <p>Status: <span class="badge badge-success">Active</span></p>
+        {{ else if .user.HasAPIKey }}
+            <p>You have an API key configured.</p>
             <p>Status: {{ if .user.APIActive }}<span class="badge badge-success">Active</span>{{ else }}<span class="badge badge-error">Inactive</span>{{ end }}</p>
+            <p><small>For security, the API key is only shown when first generated. Regenerate to get a new key.</small></p>
         {{ else }}
             <p>You don't have an API key yet.</p>
         {{ end }}
-        <form action="/api-key/generate" method="POST" class="inline-form" style="margin-top: 1rem;">
+        <form action="/api-key/generate" method="POST" class="inline-form" style="margin-top: 1rem;"
+              {{ if .user.HasAPIKey }}onsubmit="return confirm('This will invalidate your current API key. Continue?');"{{ end }}>
             <input type="hidden" name="_csrf" value="{{ .csrf_token }}">
-            <button type="submit" class="btn btn-secondary">{{ if .user.APIKey }}Regenerate{{ else }}Generate{{ end }} API Key</button>
+            <button type="submit" class="btn btn-secondary">{{ if .user.HasAPIKey }}Regenerate{{ else }}Generate{{ end }} API Key</button>
         </form>
     </section>
 
@@ -138,25 +145,13 @@
 
 {{ define "scripts" }}
 <script>
-    var apiKeyVisible = false;
-    function toggleAPIKey() {
-        var display = document.getElementById('api-key-display');
-        var full = document.getElementById('api-key-full');
-        var toggle = document.getElementById('api-key-toggle');
-        if (apiKeyVisible) {
-            display.textContent = '{{ .user.MaskedAPIKey }}';
-            toggle.textContent = 'Show';
-        } else {
-            display.textContent = full.value;
-            toggle.textContent = 'Hide';
-        }
-        apiKeyVisible = !apiKeyVisible;
-    }
     function copyAPIKey() {
         var full = document.getElementById('api-key-full');
-        navigator.clipboard.writeText(full.value).then(function() {
-            alert('API key copied to clipboard');
-        });
+        if (full) {
+            navigator.clipboard.writeText(full.value).then(function() {
+                alert('API key copied to clipboard');
+            });
+        }
     }
 </script>
 {{ end }}

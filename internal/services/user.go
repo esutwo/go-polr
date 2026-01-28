@@ -155,20 +155,25 @@ func (s *UserService) UpdatePassword(userID uint, newPassword string) error {
 }
 
 // GenerateAPIKey generates a new API key for a user
+// Returns the plaintext key (only shown once) and stores the hash in the database
 func (s *UserService) GenerateAPIKey(userID uint) (string, error) {
 	apiKey, err := helpers.GenerateAPIKey()
 	if err != nil {
 		return "", err
 	}
 
+	// Store the hash, not the plaintext key
+	hashedKey := helpers.HashAPIKey(apiKey)
+
 	err = s.db.Model(&models.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
-		"api_key":    apiKey,
+		"api_key":    hashedKey,
 		"api_active": true,
 	}).Error
 	if err != nil {
 		return "", err
 	}
 
+	// Return the plaintext key - this is the only time it's available
 	return apiKey, nil
 }
 

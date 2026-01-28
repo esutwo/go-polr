@@ -2,6 +2,8 @@ package helpers
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"hash/crc32"
@@ -55,6 +57,22 @@ func GenerateAPIKey() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+// HashAPIKey creates a SHA-256 hash of an API key for secure storage
+// We use SHA-256 instead of bcrypt because:
+// 1. API keys are high-entropy random strings (not user-chosen passwords)
+// 2. We need fast lookups for every API request
+// 3. The key is 64 hex chars (256 bits of entropy), immune to brute force
+func HashAPIKey(apiKey string) string {
+	hash := sha256.Sum256([]byte(apiKey))
+	return hex.EncodeToString(hash[:])
+}
+
+// CheckAPIKeyHash compares an API key with its hash using constant-time comparison
+func CheckAPIKeyHash(apiKey, hash string) bool {
+	computed := HashAPIKey(apiKey)
+	return subtle.ConstantTimeCompare([]byte(computed), []byte(hash)) == 1
 }
 
 // GenerateRecoveryKey generates a recovery key for account recovery

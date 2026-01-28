@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nnnc-org/go-polr/internal/helpers"
 	"github.com/nnnc-org/go-polr/internal/models"
 	"gorm.io/gorm"
 )
@@ -59,9 +60,11 @@ func APIAuth(db *gorm.DB, allowAnonymous bool) gin.HandlerFunc {
 			return
 		}
 
-		// Look up user by API key
+		// Hash the provided API key and look up by the hash
+		hashedKey := helpers.HashAPIKey(apiKey)
+
 		var user models.User
-		err := db.Where("api_key = ? AND api_active = ? AND active = ?", apiKey, true, "1").First(&user).Error
+		err := db.Where("api_key = ? AND api_active = ? AND active = ?", hashedKey, true, "1").First(&user).Error
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, APIError{
 				Error:     "Invalid API key or API access is disabled.",

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/nnnc-org/go-polr/internal/config"
 	"github.com/nnnc-org/go-polr/internal/helpers"
@@ -216,6 +217,15 @@ func (h *UserHandler) Dashboard(c *gin.Context) {
 	// Get user stats
 	stats, _ := h.statsService.GetUserStats(user.Username)
 
+	// Check for newly generated API key (flash message - shown only once)
+	var newAPIKey string
+	session := sessions.Default(c)
+	if key := session.Get("new_api_key"); key != nil {
+		newAPIKey = key.(string)
+		session.Delete("new_api_key")
+		session.Save()
+	}
+
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
 		"title":      "Dashboard - " + h.config.AppName,
 		"user":       user,
@@ -224,6 +234,7 @@ func (h *UserHandler) Dashboard(c *gin.Context) {
 		"stats":      stats,
 		"appURL":     h.config.AppURL,
 		"csrf_token": middleware.GetCSRFToken(c),
+		"newAPIKey":  newAPIKey,
 	})
 }
 
@@ -308,11 +319,17 @@ func (h *UserHandler) GenerateAPIKey(c *gin.Context) {
 		return
 	}
 
-	_, err := h.userService.GenerateAPIKey(user.ID)
+	// Generate the key - this returns the plaintext key (only time it's available)
+	apiKey, err := h.userService.GenerateAPIKey(user.ID)
 	if err != nil {
 		c.Redirect(http.StatusFound, "/dashboard?error=api_key_failed")
 		return
 	}
+
+	// Store the plaintext key in session flash so it can be shown once
+	session := sessions.Default(c)
+	session.Set("new_api_key", apiKey)
+	session.Save()
 
 	c.Redirect(http.StatusFound, "/dashboard?success=api_key_generated")
 }

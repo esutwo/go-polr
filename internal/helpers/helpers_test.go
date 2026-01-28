@@ -61,6 +61,35 @@ func TestGenerateAPIKey(t *testing.T) {
 	assert.NotEqual(t, key1, key2)
 }
 
+func TestHashAPIKey(t *testing.T) {
+	apiKey := "test-api-key-12345"
+
+	hash1 := HashAPIKey(apiKey)
+	assert.Len(t, hash1, 64) // SHA-256 = 32 bytes = 64 hex chars
+
+	// Same key should produce same hash
+	hash2 := HashAPIKey(apiKey)
+	assert.Equal(t, hash1, hash2)
+
+	// Different key should produce different hash
+	hash3 := HashAPIKey("different-key")
+	assert.NotEqual(t, hash1, hash3)
+}
+
+func TestCheckAPIKeyHash(t *testing.T) {
+	apiKey := "test-api-key-12345"
+	hash := HashAPIKey(apiKey)
+
+	// Correct key should match
+	assert.True(t, CheckAPIKeyHash(apiKey, hash))
+
+	// Wrong key should not match
+	assert.False(t, CheckAPIKeyHash("wrong-key", hash))
+
+	// Empty key should not match
+	assert.False(t, CheckAPIKeyHash("", hash))
+}
+
 func TestGenerateRecoveryKey(t *testing.T) {
 	key1, err := GenerateRecoveryKey()
 	require.NoError(t, err)
