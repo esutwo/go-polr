@@ -4,7 +4,7 @@ go-polr is a re-write of the popular [Polr](https://github.com/cydrobolt/polr) p
 
 ## Disclaimer
 
-This project is not affiliated with or endorsed by the original Polr project or its maintainers. Additionally, it is a work in progress and should not be considered feature complete.
+This project is not affiliated with or endorsed by the original Polr project or its maintainers. Additionally, it is a work in progress and should not be considered feature complete. As of write now, it accomplishes the basic functionality of shortening URLs and redirecting to them, along with user authentication and link management. The API is not fully implemented or tested as of right now.
 
 ## Usage
 
