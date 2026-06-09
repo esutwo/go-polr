@@ -26,6 +26,12 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	// Global middleware
 	router.Use(middleware.Recovery())
 	router.Use(middleware.RequestLogger())
+
+	// Health check — registered before HTTPS redirect / session middleware so it
+	// stays reachable on any host or scheme (e.g. reverse-proxy health probes
+	// hitting the container directly over HTTP on an internal IP).
+	router.GET("/health", handlers.Health(db))
+
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.HTTPSRedirect())
 
