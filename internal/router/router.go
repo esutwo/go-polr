@@ -128,6 +128,8 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		adminGroup.GET("", adminHandler.Dashboard)
 		adminGroup.GET("/dashboard", adminHandler.Dashboard)
 		adminGroup.GET("/users", adminHandler.Users)
+		adminGroup.GET("/users/new", adminHandler.NewUser)
+		adminGroup.POST("/users/new", adminHandler.CreateUser)
 		adminGroup.GET("/users/:id/edit", adminHandler.EditUser)
 		adminGroup.POST("/users/:id/edit", adminHandler.UpdateUser)
 		adminGroup.POST("/users/:id/toggle", adminHandler.ToggleUserStatus)

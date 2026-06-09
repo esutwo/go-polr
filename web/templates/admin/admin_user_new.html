@@ -1,0 +1,59 @@
+{{ template "base" . }}
+
+{{ define "navbar" }}
+<a href="/dashboard">Dashboard</a>
+<a href="/admin">Admin</a>
+<a href="/logout">Logout ({{ .user.Username }})</a>
+{{ end }}
+
+{{ define "content" }}
+<div class="admin-container">
+    <div class="admin-header">
+        <h1>Add User</h1>
+        <nav class="admin-nav">
+            <a href="/admin/dashboard" class="{{ if eq .active "dashboard" }}active{{ end }}">Dashboard</a>
+            <a href="/admin/users" class="{{ if eq .active "users" }}active{{ end }}">Users</a>
+            <a href="/admin/links" class="{{ if eq .active "links" }}active{{ end }}">Links</a>
+        </nav>
+    </div>
+
+    {{ if .error }}
+    <div class="alert alert-error">{{ .error }}</div>
+    {{ end }}
+
+    <div class="admin-section">
+        <form action="/admin/users/new" method="POST" class="edit-form">
+            <input type="hidden" name="_csrf" value="{{ .csrf_token }}">
+
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" value="{{ .form.username }}" class="form-control" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" value="{{ .form.email }}" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="role">Role</label>
+                <select id="role" name="role" class="form-control">
+                    <option value="user" {{ if eq .form.role "admin" }}{{ else }}selected{{ end }}>User</option>
+                    <option value="admin" {{ if eq .form.role "admin" }}selected{{ end }}>Admin</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-control" minlength="12" required>
+                <small>Minimum 12 characters with uppercase, lowercase, digit, and special character.</small>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Create User</button>
+                <a href="/admin/users" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{{ end }}

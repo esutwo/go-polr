@@ -6,7 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/nnnc-org/go-polr/internal/config"
+	"github.com/nnnc-org/go-polr/internal/helpers"
 	"github.com/nnnc-org/go-polr/internal/middleware"
+	"github.com/nnnc-org/go-polr/internal/models"
 	"github.com/nnnc-org/go-polr/internal/services"
 )
 
@@ -219,6 +221,76 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	}
 
 	c.Redirect(http.StatusFound, "/admin/users?success=deleted")
+}
+
+// NewUser renders the admin "create user" form.
+func (h *AdminHandler) NewUser(c *gin.Context) {
+	c.HTML(http.StatusOK, "admin_user_new.html", gin.H{
+		"title":      "Add User - " + h.config.AppName,
+		"user":       middleware.GetCurrentUser(c),
+		"active":     "users",
+		"csrf_token": middleware.GetCSRFToken(c),
+		"form":       gin.H{},
+	})
+}
+
+// CreateUser handles admin user creation. Bypasses the RegistrationEnabled
+// flag (which gates public self-signup) since this is an authenticated admin action.
+func (h *AdminHandler) CreateUser(c *gin.Context) {
+	username := c.PostForm("username")
+	email := c.PostForm("email")
+	password := c.PostForm("password")
+	role := c.PostForm("role")
+
+	if role != models.RoleAdmin {
+		role = models.RoleUser
+	}
+
+	rerender := func(status int, errMsg string) {
+		c.HTML(status, "admin_user_new.html", gin.H{
+			"title":      "Add User - " + h.config.AppName,
+			"user":       middleware.GetCurrentUser(c),
+			"active":     "users",
+			"csrf_token": middleware.GetCSRFToken(c),
+			"error":      errMsg,
+			"form": gin.H{
+				"username": username,
+				"email":    email,
+				"role":     role,
+			},
+		})
+	}
+
+	if username == "" || email == "" || password == "" {
+		rerender(http.StatusBadRequest, "Username, email, and password are required")
+		return
+	}
+
+	if err := helpers.ValidatePasswordStrength(password); err != nil {
+		rerender(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	_, err := h.userService.Create(services.CreateUserInput{
+		Username: username,
+		Email:    email,
+		Password: password,
+		Role:     role,
+		IP:       c.ClientIP(),
+	})
+	if err != nil {
+		switch err {
+		case services.ErrUsernameTaken:
+			rerender(http.StatusBadRequest, "Username is already taken")
+		case services.ErrEmailTaken:
+			rerender(http.StatusBadRequest, "Email is already registered")
+		default:
+			rerender(http.StatusInternalServerError, "Failed to create user")
+		}
+		return
+	}
+
+	c.Redirect(http.StatusFound, "/admin/users?success=created")
 }
 
 // EditUser renders the user edit page
