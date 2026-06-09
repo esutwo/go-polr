@@ -17,7 +17,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # Final stage
 FROM alpine:3.20
 
-RUN apk --no-cache add ca-certificates tzdata wget \
+RUN apk --no-cache add ca-certificates tzdata curl \
     && addgroup -S -g 10001 app \
     && adduser  -S -u 10001 -G app app
 
@@ -31,6 +31,6 @@ USER app:app
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD curl http://localhost:8080/health || exit 1
 
 ENTRYPOINT ["/app/go-polr"]
